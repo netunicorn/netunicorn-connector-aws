@@ -1,0 +1,29 @@
+---
+netunicorn.aws.access_key: "00000000000000000000"
+netunicorn.aws.secret_key: "00000000000000000000"
+netunicorn.aws.default_region: "us-east-1"  # aws region
+netunicorn.aws.cluster: "netunicorn"
+# netunicorn.aws.subnet: "subnet-00000000000000000"  # optional, would be created if not provided
+netunicorn.aws.containers.configurations:  # define possible containers configurations (memory and cpu)
+# see https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html "Task CPU and memory" for more details
+  - name: "aws-fargate-A-"
+    properties:
+      cpu: 256       # The number of cpu units reserved for the container (Docker CPU Shares)
+      memory: 512    # Memory in MiB
+      custom-tag-1: custom-value-1
+
+  - name: "aws-fargate-B-"
+    properties:
+      cpu: 512
+      memory: 1024
+      custom-tag-2: custom-value-2
+
+  - name: "aws-fargate-ARM64-"
+    properties:
+      cpu: 256
+      memory: 512
+      architecture: arm64    # default is amd64
+
+# whether to allow users to override cpu and memory settings
+# if disabled, the connector will verify that provided nodes match defined in netunicorn.aws.containers.configurations
+netunicorn.aws.containers.allow_custom: False

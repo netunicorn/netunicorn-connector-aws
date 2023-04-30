@@ -1,0 +1,27 @@
+[project]
+name = "netunicorn-connector-aws"
+version = "0.0.1"
+authors = [
+    {name = "Roman Beltiukov", email = "rbeltiukov@ucsb.edu"},
+]
+description = "AWS connector for netunicorn"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["netunicorn"]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "netunicorn-base >= 0.2.6",
+    "pyyaml",
+    "boto3",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+strict = true

@@ -1,6 +1,22 @@
-# netunicorn-connector-template
-This is a template repository for creating a new connector for the netunicorn platform.
+# netunicorn-connector-aws
+This is an AWS Fargate connector for netunicorn.
 
-## How to use this template
-Use the code from \_\_main__.py as a starting point for your connector. The code is commented and should be self-explanatory.
-In addition, you can read the NetunicornProtocol comments in netunicorn-director-infrastructure package.
+## How to use
+This connector is supposed to be installed as a part of netunicorn-director-infrastructure package or container.
+
+Install the package:
+```bash
+pip install netunicorn-connector-aws
+```
+
+Then, add the connector to the netunicorn-director-infrastructure configuration:
+```yaml
+  aws-fargate:  # unique name
+    enabled: true
+    module: "netunicorn.director.infrastructure.connectors.aws"  # where to import from
+    class: "AWSFargate"  # class name
+    config: "configuration-example.yaml"     # path to configuration file
+```
+
+Modify the configuration file to provide needed parameters (see [example](configuration-example.yaml)), such as
+AWS credentials, region, etc.
