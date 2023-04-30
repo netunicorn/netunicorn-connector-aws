@@ -14,6 +14,7 @@ from netunicorn.base.deployment import Deployment
 from netunicorn.base.environment_definitions import DockerImage
 from netunicorn.base.nodes import Node, Nodes, UncountableNodePool
 from returns.result import Failure, Result, Success
+from returns.pipeline import is_successful
 
 from netunicorn.director.base.connectors.protocol import (
     NetunicornConnectorProtocol,
@@ -64,6 +65,7 @@ class AWSFargate(NetunicornConnectorProtocol):
             "netunicorn.aws.subnet", None
         )
         if not self.subnet:
+            self.logger.info("No subnet provided, creating new...")
             self.subnet = self._create_subnet()
 
         self._create_node_template(
@@ -82,6 +84,7 @@ class AWSFargate(NetunicornConnectorProtocol):
 
         clusters = self.ecs_client.list_clusters()
         if self.cluster not in clusters["clusterArns"]:
+            self.logger.info(f"Cluster {self.cluster} does not exist, creating...")
             self.ecs_client.create_cluster(
                 clusterName=self.cluster,
                 capacityProviders=["FARGATE"],
@@ -93,6 +96,7 @@ class AWSFargate(NetunicornConnectorProtocol):
             )
 
         self.cleaner_task: Optional[asyncio.Task] = None
+        self.logger.info("AWS Fargate connector initialized")
 
     async def __periodic_cleaner(self) -> NoReturn:
         """
@@ -109,6 +113,7 @@ class AWSFargate(NetunicornConnectorProtocol):
                     self.ecs_client.delete_task_definitions(
                         taskDefinitions=definitions["taskDefinitionArns"]
                     )
+                    self.logger.debug(f"Cleaned {len(definitions['taskDefinitionArns'])} stopped containers")
             except Exception as e:
                 self.logger.error(f"Failed to clean task definitions: {e}")
             await asyncio.sleep(300)
@@ -142,13 +147,19 @@ class AWSFargate(NetunicornConnectorProtocol):
             vpc_id = vpcs["Vpcs"][0]["VpcId"]
             vpc = ec2_resource.Vpc(vpc_id)
             for subnet in vpc.subnets.all():
+                self.logger.info(
+                    f"Default VPC {vpc_id} with tag netunicorn:default found,"
+                    f" taking the first subnet with ID {subnet.id}"
+                )
                 return subnet.id
 
+        self.logger.info("No default VPC found, creating new...")
         create_vpc_response = ec2_client.create_vpc(CidrBlock="10.113.0.0/16")
         vpc = ec2_resource.Vpc(create_vpc_response["Vpc"]["VpcId"])
         vpc.wait_until_available()
         vpc.create_tags(Tags=[{"Key": "netunicorn", "Value": "default"}])
         subnet = vpc.create_subnet(CidrBlock="10.113.0.0/16")
+
 
         create_ig_response = ec2_client.create_internet_gateway()
         ig_id = create_ig_response["InternetGateway"]["InternetGatewayId"]
@@ -157,10 +168,15 @@ class AWSFargate(NetunicornConnectorProtocol):
         for route_table in vpc.route_tables.all():
             route_table.create_route(DestinationCidrBlock="0.0.0.0/0", GatewayId=ig_id)
 
+        self.logger.info(
+            f"Created VPC {vpc.id} with subnet {subnet.id}, "
+            f"internet gateway {ig_id} and default route to the internet"
+        )
         return subnet.id
 
     def _create_node_template(self, configuration: Optional[list[dict]]) -> None:
         if not configuration:
+            self.logger.warning("No node configuration provided, using default AMD64 Linux node with 1 vCPU and 2GB RAM")
             self.node_template = [
                 Node(
                     name=f"aws-fargate-default-",
@@ -173,6 +189,7 @@ class AWSFargate(NetunicornConnectorProtocol):
             ]
             return
 
+        self.logger.info(f"Creating node template with {len(configuration)} nodes")
         self.node_template = [
             Node(
                 name=configuration[i].get("name", f"aws-fargate-{i}-"),
@@ -212,12 +229,14 @@ class AWSFargate(NetunicornConnectorProtocol):
                 return False, f"Cluster {self.cluster} is not found"
             return True, ""
         except Exception as e:
+            self.logger.exception(e)
             return False, str(e)
 
     async def shutdown(self, *args: Any, **kwargs: Any) -> None:
         if self.cleaner_task:
             self.cleaner_task.cancel()
         self.ecs_client.close()
+        self.logger.info("AWS Fargate executor shutdown")
 
     async def get_nodes(
         self,
@@ -258,11 +277,6 @@ class AWSFargate(NetunicornConnectorProtocol):
                     lambda x: Success(x)
                     if isinstance(deployment.environment_definition, DockerImage)
                     else Failure("AWS Fargate only supports DockerImage deployments")
-                )
-                .bind(
-                    lambda x: Success(x)
-                    if deployment.node.architecture == Architecture.LINUX_AMD64
-                    else Failure("AWS Fargate only supports Linux AMD64 nodes")
                 )
             )
         return result
@@ -313,6 +327,10 @@ class AWSFargate(NetunicornConnectorProtocol):
                 )
 
             response = self.ecs_client.register_task_definition(**parameters)
+            self.logger.debug(
+                f"Created task definition {response['taskDefinition']['taskDefinitionArn']}"
+                f" for deployment {deployment.executor_id}"
+            )
             return Success(
                 (
                     deployment,
@@ -321,6 +339,7 @@ class AWSFargate(NetunicornConnectorProtocol):
                 )
             )
         except Exception as e:
+            self.logger.exception(e)
             return Failure(str(e))
 
     def _run_task(self, data: tuple[Deployment, str, str]) -> Result[None, str]:
@@ -341,13 +360,16 @@ class AWSFargate(NetunicornConnectorProtocol):
                 ],
             )
             if response["failures"]:
+                self.logger.warning(f"Failed to run task: {response['failures']}")
                 return Failure(str(response["failures"]))
 
             self.ecs_client.deregister_task_definition(
                 taskDefinition=task_definition_arn
             )
+            self.logger.debug(f"Successfully ran task for deployment {deployment.executor_id}")
             return Success(None)
         except Exception as e:
+            self.logger.exception(e)
             return Failure(str(e))
 
     async def execute(
@@ -388,6 +410,10 @@ class AWSFargate(NetunicornConnectorProtocol):
             for executor_id, deployment_result in result.items()
         }
 
+        self.logger.debug(
+            f"Started experiment {experiment_id} with "
+            f"{sum(is_successful(x) for x in result.values())} deployments"
+        )
         return result
 
     async def stop_executors(
@@ -420,6 +446,7 @@ class AWSFargate(NetunicornConnectorProtocol):
                             cluster=self.cluster,
                             task=task,
                         )
+                        self.logger.debug(f"Stopped task for executor {tag['value']}")
                         results[tag["value"]] = Success(None)
                         break
 
