@@ -82,8 +82,8 @@ class AWSFargate(NetunicornConnectorProtocol):
             aws_secret_access_key=self.secret_key,
         )
 
-        clusters = self.ecs_client.list_clusters()
-        if self.cluster not in clusters["clusterArns"]:
+        clusters = self.__get_cluster_names()
+        if self.cluster not in clusters:
             self.logger.info(f"Cluster {self.cluster} does not exist, creating...")
             self.ecs_client.create_cluster(
                 clusterName=self.cluster,
@@ -97,6 +97,13 @@ class AWSFargate(NetunicornConnectorProtocol):
 
         self.cleaner_task: Optional[asyncio.Task] = None
         self.logger.info("AWS Fargate connector initialized")
+
+    def __get_cluster_names(self) -> set[str]:
+        clusters = self.ecs_client.list_clusters()
+        result = set()
+        for cluster in clusters["clusterArns"]:
+            result.add(cluster.split("/")[1])
+        return result
 
     async def __periodic_cleaner(self) -> NoReturn:
         """
@@ -226,8 +233,8 @@ class AWSFargate(NetunicornConnectorProtocol):
 
     async def health(self, *args: Any, **kwargs: Any) -> Tuple[bool, str]:
         try:
-            clusters = self.ecs_client.list_clusters()
-            if self.cluster not in clusters["clusterArns"]:
+            clusters = self.__get_cluster_names()
+            if self.cluster not in clusters:
                 return False, f"Cluster {self.cluster} is not found"
             return True, ""
         except Exception as e:
