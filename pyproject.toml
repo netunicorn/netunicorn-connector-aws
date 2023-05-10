@@ -1,6 +1,6 @@
 [project]
 name = "netunicorn-connector-aws"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
     {name = "Roman Beltiukov", email = "rbeltiukov@ucsb.edu"},
 ]
@@ -13,7 +13,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "netunicorn-base >= 0.2.6",
+    "netunicorn-base >= 0.3.1",
     "pyyaml",
     "boto3",
 ]

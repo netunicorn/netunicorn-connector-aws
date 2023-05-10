@@ -193,7 +193,9 @@ class AWSFargate(NetunicornConnectorProtocol):
         self.node_template = [
             Node(
                 name=configuration[i].get("name", f"aws-fargate-{i}-"),
-                properties=deepcopy(configuration[i].get("properties", {})),
+                properties=deepcopy(configuration[i].get("properties", {})) | {
+                    "netunicorn-environments": {"DockerImage"},
+                },
                 architecture=(
                     Architecture.LINUX_ARM64
                     if configuration[i]
