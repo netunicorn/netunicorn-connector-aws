@@ -482,9 +482,10 @@ class AWSFargate(NetunicornConnectorProtocol):
                 self.ecs_client.deregister_task_definition(
                     taskDefinition=definition,
                 )
-            self.ecs_client.delete_task_definitions(
-                taskDefinitions=definitions["taskDefinitionArns"]
-            )
+            if definitions["taskDefinitionArns"]:
+                self.ecs_client.delete_task_definitions(
+                    taskDefinitions=definitions["taskDefinitionArns"]
+                )
         except Exception as e:
             self.logger.exception(e)
 
