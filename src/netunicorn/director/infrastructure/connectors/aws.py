@@ -254,10 +254,11 @@ class AWSFargate(NetunicornConnectorProtocol):
         *args: Any,
         **kwargs: Any,
     ) -> Nodes:
-        nodes = UncountableNodePool(node_template=self.node_template)
-        for template_node in nodes:
+        node_template = deepcopy(self.node_template)
+        for node in node_template:
             # making node names unique to prevent locks
-            template_node.name += f"{username}-"
+            node.name += f"{username}-"
+        nodes = UncountableNodePool(node_template=node_template)
         return nodes
 
     async def deploy(
