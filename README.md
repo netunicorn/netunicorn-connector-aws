@@ -20,3 +20,8 @@ Then, add the connector to the netunicorn-director-infrastructure configuration:
 
 Modify the configuration file to provide needed parameters (see [example](configuration-example.yaml)), such as
 AWS credentials, region, etc.
+
+## AWS configuration
+You need to create an ECS cluster with Fargate as a provider type, e.g., according to this guide: https://docs.aws.amazon.com/AmazonECS/latest/userguide/create-cluster-console-v2.html
+
+In the configuration file, please provide valid credentials, the correct region, and the cluster name.
