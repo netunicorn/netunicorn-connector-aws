@@ -75,6 +75,8 @@ class AWSFargate(NetunicornConnectorProtocol):
             self.configuration.get("netunicorn.aws.containers.allow_custom", False)
         )
 
+        self.soft_limit = self.configuration.get("netunicorn.aws.containers.soft_limit", None)
+
         self.ecs_client = boto3.client(
             "ecs",
             region_name=self.default_region,
@@ -258,7 +260,7 @@ class AWSFargate(NetunicornConnectorProtocol):
         for node in node_template:
             # making node names unique to prevent locks
             node.name += f"{username}-"
-        nodes = UncountableNodePool(node_template=node_template)
+        nodes = UncountableNodePool(node_template=node_template, soft_limit=self.soft_limit)
         return nodes
 
     async def deploy(

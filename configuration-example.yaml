@@ -10,6 +10,7 @@ netunicorn.aws.containers.configurations:  # define possible containers configur
     properties:
       cpu: 256       # The number of cpu units reserved for the container (Docker CPU Shares)
       memory: 512    # Memory in MiB
+      netunicorn-access-tags: ["aws-type-A", "aws"]
       custom-tag-1: custom-value-1
 
   - name: "aws-fargate-B-"
@@ -17,13 +18,17 @@ netunicorn.aws.containers.configurations:  # define possible containers configur
       cpu: 512
       memory: 1024
       custom-tag-2: custom-value-2
+      netunicorn-access-tags: ["aws-type-B", "aws"]
 
   - name: "aws-fargate-ARM64-"
     properties:
       cpu: 256
       memory: 512
       architecture: arm64    # default is amd64
+      netunicorn-access-tags: ["aws-type-ARM64", "aws"]
 
 # whether to allow users to override cpu and memory settings
 # if disabled, the connector will verify that provided nodes match defined in netunicorn.aws.containers.configurations
 netunicorn.aws.containers.allow_custom: False
+
+netunicorn.aws.containers.soft_limit: 100  # soft limit for max number of containers to get from the pool
