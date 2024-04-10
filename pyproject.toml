@@ -1,6 +1,6 @@
 [project]
 name = "netunicorn-connector-aws"
-version = "0.0.7"
+version = "0.0.8"
 authors = [
     {name = "Roman Beltiukov", email = "rbeltiukov@ucsb.edu"},
 ]

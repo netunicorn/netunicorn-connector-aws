@@ -119,9 +119,10 @@ class AWSFargate(NetunicornConnectorProtocol):
                 )
 
                 if definitions["taskDefinitionArns"]:
-                    self.ecs_client.delete_task_definitions(
-                        taskDefinitions=definitions["taskDefinitionArns"]
-                    )
+                    for i in range(0, len(definitions["taskDefinitionArns"]), 5):
+                        self.ecs_client.deregister_task_definition(
+                            taskDefinition=definitions["taskDefinitionArns"][i:i+5]
+                        )
                     self.logger.debug(f"Cleaned {len(definitions['taskDefinitionArns'])} stopped containers")
             except Exception as e:
                 self.logger.error(f"Failed to clean task definitions: {e}")
@@ -490,9 +491,10 @@ class AWSFargate(NetunicornConnectorProtocol):
                     taskDefinition=definition,
                 )
             if definitions["taskDefinitionArns"]:
-                self.ecs_client.delete_task_definitions(
-                    taskDefinitions=definitions["taskDefinitionArns"]
-                )
+                for i in range(0, len(definitions["taskDefinitionArns"]), 5):
+                    self.ecs_client.deregister_task_definition(
+                        taskDefinition=definitions["taskDefinitionArns"][i:i+5]
+                    )
         except Exception as e:
             self.logger.exception(e)
 
